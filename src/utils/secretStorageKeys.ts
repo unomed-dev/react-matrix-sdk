@@ -37,7 +37,7 @@ const getSecretStorageKey = async ({ keys }: {
 
 function cacheSecretStorageKey(
   keyId: string,
-  keyInfo: SecretStorageKeyDescriptionAesV1,
+  _keyInfo: SecretStorageKeyDescriptionAesV1,
   privateKey: Uint8Array,
 ) {
   secretStorageKeys.set(keyId, privateKey);
