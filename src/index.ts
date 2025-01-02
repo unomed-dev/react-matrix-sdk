@@ -18,3 +18,6 @@ export {
   useMatrixClient
 } from './hooks/useMatrixClient';
 export { default as MatrixClientProvider } from './providers/MatrixClientProvider';
+export {
+  default as useRooms,
+} from './hooks/useRooms';
