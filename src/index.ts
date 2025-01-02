@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Unomed AG
+ * Copyright 2024-2025 Unomed AG
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,3 +21,6 @@ export { default as MatrixClientProvider } from './providers/MatrixClientProvide
 export {
   default as useRooms,
 } from './hooks/useRooms';
+export {
+  default as useLatestEvents,
+} from './hooks/useLatestEvents';
