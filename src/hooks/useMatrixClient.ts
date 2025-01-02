@@ -20,9 +20,6 @@ import MatrixClientContext from '../context/MatrixClientContext';
 
 const useMatrixClient = () => {
   const context = useContext(MatrixClientContext);
-  if (!context) {
-    throw new Error('useMatrixClient must be used within a MatrixClientProvider');
-  }
   return context;
 };
 

@@ -15,8 +15,14 @@
  */
 
 import { MatrixClient } from 'matrix-js-sdk';
+import { CryptoApi } from 'matrix-js-sdk/lib/crypto-api';
 import { createContext } from 'react';
 
-const MatrixClientContext = createContext<MatrixClient | undefined>(undefined);
+interface IMatrixClientContext {
+  mx?: MatrixClient;
+  cryptoApi?: CryptoApi;
+}
+
+const MatrixClientContext = createContext<IMatrixClientContext>({});
 
 export default MatrixClientContext;
