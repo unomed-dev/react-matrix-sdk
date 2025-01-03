@@ -25,7 +25,7 @@ interface Props {
 
 const useRooms = ({
   searchTerm = '',
-}: Partial<Props> = {}) => {
+}: Props = {}) => {
   const { mx } = useMatrixClient();
   const [joinedRooms, setJoinedRooms] = useState<Room[]>([]);
   const [invitedRooms, setInvitedRooms] = useState<Room[]>([]);
