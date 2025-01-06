@@ -74,6 +74,21 @@ const MatrixClientProvider = ({
 
     (async () => {
       await indexedDBStore.startup();
+
+      if (enableCrypto) {
+        // Setup e2ee
+        const rustCryptoStoreKey = await rustCryptoStoreKeyFn?.();
+        if (rustCryptoStoreKey) {
+          await client.initRustCrypto({ storageKey: rustCryptoStoreKey });
+        } else {
+          await client.initRustCrypto();
+        }
+
+        client.setGlobalErrorOnUnknownDevices(false);
+        const crypto = client.getCrypto();
+        setCryptoApi(crypto);
+      }
+
       // Start syncing
       await client.startClient({ lazyLoadMembers: true });
     })();
@@ -89,26 +104,7 @@ const MatrixClientProvider = ({
       // Clean up matrix client on unmount
       client.stopClient();
     };
-  }, [baseUrl, accessToken, userId, deviceId]);
-
-  useEffect(() => {
-    // Setup e2ee
-    if (enableCrypto && mx) {
-      (async () => {
-        const rustCryptoStoreKey = await rustCryptoStoreKeyFn?.();
-        if (rustCryptoStoreKey) {
-          await mx.initRustCrypto({ storageKey: rustCryptoStoreKey });
-        } else {
-          await mx.initRustCrypto();
-        }
-
-        mx.setGlobalErrorOnUnknownDevices(false);
-
-        const crypto = mx.getCrypto();
-        setCryptoApi(crypto);
-      })();
-    }
-  }, [enableCrypto, mx, rustCryptoStoreKeyFn]);
+  }, [baseUrl, enableCrypto, rustCryptoStoreKeyFn, accessToken, userId, deviceId]);
 
   useEffect(() => {
     // Add recovery key and enable
