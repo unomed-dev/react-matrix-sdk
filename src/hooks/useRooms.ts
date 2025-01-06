@@ -17,14 +17,19 @@
 import { ClientEvent, Room, RoomEvent } from 'matrix-js-sdk';
 import { useMatrixClient } from './useMatrixClient';
 import { useEffect, useState } from 'react';
+import { isDMRoom } from '../utils/room';
 
 interface Props {
   // A search term used to filter rooms by name
   searchTerm?: string;
+  dmsOnly?: boolean;
+  groupChatsOnly?: boolean;
 }
 
 const useRooms = ({
   searchTerm = '',
+  dmsOnly = false,
+  groupChatsOnly = false,
 }: Props = {}) => {
   const { mx } = useMatrixClient();
   const [joinedRooms, setJoinedRooms] = useState<Room[]>([]);
@@ -43,6 +48,14 @@ const useRooms = ({
 
         // Remove rooms not matching the search term
         if (searchTerm && !room.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+          return;
+        }
+
+        if (dmsOnly && !isDMRoom(room)) {
+          return;
+        }
+
+        if (groupChatsOnly && isDMRoom(room)) {
           return;
         }
 
@@ -79,7 +92,7 @@ const useRooms = ({
       mx?.removeListener(ClientEvent.AccountData, refreshRooms);
       mx?.removeListener(RoomEvent.MyMembership, refreshRooms);
     };
-  }, [mx, searchTerm]);
+  }, [mx, searchTerm, dmsOnly, groupChatsOnly]);
 
   return {
     joinedRooms,
