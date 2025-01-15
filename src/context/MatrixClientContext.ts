@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Unomed AG
+ * Copyright 2024-2025 Unomed AG
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import { MatrixClient } from 'matrix-js-sdk';
 import { CryptoApi } from 'matrix-js-sdk/lib/crypto-api';
 import { createContext } from 'react';
 
-interface IMatrixClientContext {
+export interface IMatrixClientContext {
   mx?: MatrixClient;
   cryptoApi?: CryptoApi;
 }

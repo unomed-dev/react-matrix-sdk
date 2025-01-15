@@ -5,7 +5,12 @@ import dts from 'vite-plugin-dts';
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), dts()],
+  plugins: [
+    dts({
+      tsconfigPath: 'tsconfig.app.json'
+    }),
+    react(),
+  ],
   build: {
     lib: {
       entry: path.resolve(__dirname, 'src/index.ts'),
