@@ -50,6 +50,9 @@ const useSso = (baseUrl: string) => {
         const mx = createClient({ baseUrl });
         const baseDomain = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`;
         if (loginToken) {
+          // Clear any existing stores
+          await mx.clearStores();
+
           const payload = await mx.loginWithToken(loginToken);
           if (payload.access_token) {
             storeCredentials(payload);
