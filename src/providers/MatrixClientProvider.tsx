@@ -55,7 +55,7 @@ const MatrixClientProvider = ({
     const indexedDBStore = new IndexedDBStore({
       indexedDB: global.indexedDB,
       localStorage: global.localStorage,
-      dbName: 'web-sync-store',
+      dbName: `web-sync-store:${deviceId}`,
     });
 
     const client = createClient({
@@ -63,7 +63,7 @@ const MatrixClientProvider = ({
       accessToken,
       userId,
       store: indexedDBStore,
-      cryptoStore: new IndexedDBCryptoStore(global.indexedDB, 'crypto-store'),
+      cryptoStore: new IndexedDBCryptoStore(global.indexedDB, `crypto-store:${deviceId}`),
       deviceId,
       timelineSupport: true,
       cryptoCallbacks,
