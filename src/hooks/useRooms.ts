@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { ClientEvent, Room, RoomEvent } from 'matrix-js-sdk';
+import { ClientEvent, Room } from 'matrix-js-sdk';
 import { useMatrixClient } from './useMatrixClient';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { isDMRoom } from '../utils/room';
 
 interface Props {
@@ -37,62 +37,62 @@ const useRooms = ({
   const [joinedSpaces, setJoinedSpaces] = useState<Room[]>([]);
   const [invitedSpaces, setInvitedSpaces] = useState<Room[]>([]);
 
-  useEffect(() => {
+  const refreshRooms = useCallback(() => {
     const _joinedRooms: Room[] = [];
     const _invitedRooms: Room[] = [];
     const _joinedSpaces: Room[] = [];
     const _invitedSpaces: Room[] = [];
 
-    const refreshRooms = () => {
-      mx?.getRooms().forEach((room) => {
+    mx?.getRooms().forEach((room) => {
+      // Remove rooms not matching the search term
+      if (searchTerm && !room.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return;
+      }
 
-        // Remove rooms not matching the search term
-        if (searchTerm && !room.name.toLowerCase().includes(searchTerm.toLowerCase())) {
-          return;
-        }
+      if (dmsOnly && !isDMRoom(room)) {
+        return;
+      }
 
-        if (dmsOnly && !isDMRoom(room)) {
-          return;
-        }
+      if (groupChatsOnly && isDMRoom(room)) {
+        return;
+      }
 
-        if (groupChatsOnly && isDMRoom(room)) {
-          return;
-        }
-
-        if (room.getMyMembership() === 'invite') {
-          if (room.isSpaceRoom()) {
-            _invitedSpaces.push(room);
-          } else {
-            _invitedRooms.push(room);
-          }
-        }
-
-        if (room.getMyMembership() !== 'join') return;
-
+      if (room.getMyMembership() === 'invite') {
         if (room.isSpaceRoom()) {
-          _joinedSpaces.push(room);
+          _invitedSpaces.push(room);
         } else {
-          _joinedRooms.push(room);
+          _invitedRooms.push(room);
         }
-      });
+      }
 
-      setJoinedRooms(_joinedRooms);
-      setInvitedRooms(_invitedRooms);
-      setJoinedSpaces(_joinedSpaces);
-      setInvitedSpaces(_invitedSpaces);
-    };
+      if (room.getMyMembership() !== 'join') return;
 
-    refreshRooms();
+      if (room.isSpaceRoom()) {
+        _joinedSpaces.push(room);
+      } else {
+        _joinedRooms.push(room);
+      }
+    });
 
-    mx?.on(RoomEvent.Name, refreshRooms);
-    mx?.on(ClientEvent.AccountData, refreshRooms);
-    mx?.on(RoomEvent.MyMembership, refreshRooms);
-    return () => {
-      mx?.removeListener(RoomEvent.Name, refreshRooms);
-      mx?.removeListener(ClientEvent.AccountData, refreshRooms);
-      mx?.removeListener(RoomEvent.MyMembership, refreshRooms);
-    };
+    setJoinedRooms(_joinedRooms);
+    setInvitedRooms(_invitedRooms);
+    setJoinedSpaces(_joinedSpaces);
+    setInvitedSpaces(_invitedSpaces);
+
   }, [mx, searchTerm, dmsOnly, groupChatsOnly]);
+
+  useEffect(() => {
+    // Populate rooms when hook is mounted
+    refreshRooms();
+  }, [refreshRooms]);
+
+  useEffect(() => {
+    // Refresh rooms on incoming "Room" events
+    mx?.on(ClientEvent.Room, refreshRooms);
+    return () => {
+      mx?.removeListener(ClientEvent.Room, refreshRooms);
+    };
+  }, [mx, refreshRooms]);
 
   return {
     joinedRooms,
