@@ -53,7 +53,10 @@ const useSso = (baseUrl: string) => {
           const payload = await mx.loginWithToken(loginToken);
           if (payload.access_token) {
             storeCredentials(payload);
-            window.location.replace(baseDomain);
+            setAccessToken(payload.access_token);
+            setUserId(payload.user_id);
+            setDeviceId(payload.device_id);
+            window.history.replaceState({}, document.title, baseDomain);
           } else {
             clearCredentials();
           }
