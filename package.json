@@ -41,7 +41,7 @@
     "vite-plugin-dts": "^4.3.0"
   },
   "peerDependencies": {
-    "matrix-js-sdk": "^34.13.0",
+    "matrix-js-sdk": "^35.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   }
