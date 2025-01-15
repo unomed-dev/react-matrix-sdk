@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { EventType, IRoomTimelineData, MatrixEvent, Room, RoomEvent } from 'matrix-js-sdk';
+import { EventType, JoinRule, MatrixClient, MatrixEvent, MatrixEventEvent, Room, RoomEvent } from 'matrix-js-sdk';
 import { useEffect, useState } from 'react';
 import { useMatrixClient } from './useMatrixClient';
 
@@ -22,6 +22,35 @@ import { useMatrixClient } from './useMatrixClient';
 interface Props {
   rooms?: Room[];
 }
+
+const shouldShowEvent = (mx: MatrixClient, event: MatrixEvent) => {
+  const eventType = event.getType();
+  const content = event.getContent();
+  const prevContent = event.getPrevContent();
+
+  if (eventType === EventType.RoomMember) {
+
+    const room = mx.getRoom(event.getRoomId());
+    if (room?.getJoinRule() === JoinRule.Public) {
+      // Do not show room member events in public rooms
+      return false;
+    }
+
+    if (prevContent.displayname && prevContent.displayname !== content.displayname) {
+      // Ignore display name changes
+      return false;
+    }
+
+    if (prevContent.avatar_url && prevContent.avatar_url !== content.avatar_url) {
+      // Ignore avatar changes
+      return false;
+    }
+    return true;
+  }
+
+  return eventType === EventType.RoomMessage;
+};
+
 
 // Obtain the latest message event per room
 const useLatestEvents = ({
@@ -39,8 +68,39 @@ const useLatestEvents = ({
           const events = room.getLiveTimeline().getEvents();
 
           for (let i = events.length - 1; i >= 0; i -= 1) {
-            if (EventType.RoomMessage === events[i].getType()) {
-              return events[i];
+            const event = events[i];
+            if (shouldShowEvent(mx, event)) {
+              return event;
+            }
+          }
+          return undefined;
+        });
+        setLatestEvents(_latestEvents);
+      })();
+    }
+  }, [mx, rooms]);
+
+  useEffect(() => {
+    if (mx) {
+      (async () => {
+        const timelinePromises = rooms.map((room) => {
+          const timeline = room.getLiveTimeline();
+          return mx?.paginateEventTimeline(timeline, {
+            backwards: true,
+            limit: 10,
+          });
+        });
+        await Promise.all(timelinePromises);
+
+        const decryptionPromises = rooms.map((room) => room.decryptAllEvents());
+        await Promise.all(decryptionPromises);
+        const _latestEvents = rooms.map((room) => {
+          const events = room.getLiveTimeline().getEvents();
+
+          for (let i = events.length - 1; i >= 0; i -= 1) {
+            const event = events[i];
+            if (shouldShowEvent(mx, event)) {
+              return event;
             }
           }
           return undefined;
@@ -55,18 +115,16 @@ const useLatestEvents = ({
     const updateLatestEvent = async (
       event: MatrixEvent,
       room: Room | undefined,
-      _toStartOfTimeline: boolean | undefined,
-      _removed: boolean | undefined,
-      data: IRoomTimelineData,
     ) => {
-      if (data.liveEvent && room) {
+      if (mx && room) {
         await mx?.decryptEventIfNeeded(event);
-
-        if (EventType.RoomMessage === event.getType()) {
+        if (shouldShowEvent(mx, event)) {
           const index = rooms.findIndex((entry) => entry.roomId === room.roomId);
           if (index > -1) {
-            latestEvents[index] = event;
-            setLatestEvents([...latestEvents]);
+            if (event.getTs() > (latestEvents[index]?.getTs() || 0)) {
+              latestEvents[index] = event;
+              setLatestEvents([...latestEvents]);
+            }
           }
         }
       }
@@ -77,6 +135,19 @@ const useLatestEvents = ({
       mx?.removeListener(RoomEvent.Timeline, updateLatestEvent);
     };
   }, [mx, rooms, latestEvents]);
+
+  useEffect(() => {
+    // Rerender if latest events are decrypted
+    const refreshEvents = () => setLatestEvents([...latestEvents]);
+    latestEvents.forEach((event) => {
+      event?.on(MatrixEventEvent.Decrypted, refreshEvents);
+    });
+    return () => {
+      latestEvents.forEach((event) => {
+        event?.removeListener(MatrixEventEvent.Decrypted, refreshEvents);
+      });
+    };
+  }, [latestEvents]);
 
   return latestEvents;
 };
