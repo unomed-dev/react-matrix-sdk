@@ -72,8 +72,10 @@ const useLatestEvents = ({
         const events = room.getLiveTimeline().getEvents();
         const decryptionPromises = events.map((event) => mx.decryptEventIfNeeded(event));
         await Promise.all(decryptionPromises);
-        for (let i = events.length - 1; i >= 0; i -= 1) {
-          const event = events[i];
+
+        const decryptedEvents = room.getLiveTimeline().getEvents();
+        for (let i = decryptedEvents.length - 1; i >= 0; i -= 1) {
+          const event = decryptedEvents[i];
           if (shouldShowEvent(mx, event)) {
             return event;
           }
@@ -83,8 +85,6 @@ const useLatestEvents = ({
       };
 
       (async () => {
-        // const decryptionPromises = rooms.map((room) => room.decryptAllEvents());
-        // await Promise.all(decryptionPromises);
         const latestEventsPromises = rooms.map((room) => getLatestPreviewEvent(room));
         const _latestEvents = await Promise.all(latestEventsPromises);
 
@@ -96,14 +96,13 @@ const useLatestEvents = ({
           (index) => index !== undefined
         );
 
-
         const backPaginationPromises = undefinedIndexes.map(
           (index) => {
             const room = rooms[index];
             const timeline = room.getLiveTimeline();
             return mx?.paginateEventTimeline(timeline, {
               backwards: true,
-              limit: 5,
+              limit: 10,
             });
           }
         );
@@ -116,36 +115,6 @@ const useLatestEvents = ({
       })();
     }
   }, [mx, rooms]);
-
-  // useEffect(() => {
-  //   if (mx) {
-  //     (async () => {
-  //       const timelinePromises = rooms.map((room) => {
-  //         const timeline = room.getLiveTimeline();
-  //         return mx?.paginateEventTimeline(timeline, {
-  //           backwards: true,
-  //           limit: 10,
-  //         });
-  //       });
-  //       await Promise.all(timelinePromises);
-  //
-  //       const decryptionPromises = rooms.map((room) => room.decryptAllEvents());
-  //       await Promise.all(decryptionPromises);
-  //       const _latestEvents = rooms.map((room) => {
-  //         const events = room.getLiveTimeline().getEvents();
-  //
-  //         for (let i = events.length - 1; i >= 0; i -= 1) {
-  //           const event = events[i];
-  //           if (shouldShowEvent(mx, event)) {
-  //             return event;
-  //           }
-  //         }
-  //         return undefined;
-  //       });
-  //       setLatestEvents(_latestEvents);
-  //     })();
-  //   }
-  // }, [mx, rooms]);
 
   useEffect(() => {
     // update when a new live event arrives in one of the rooms
