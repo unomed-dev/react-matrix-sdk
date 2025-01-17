@@ -61,51 +61,57 @@ const useLatestEvents = ({
 
   useEffect(() => {
     if (mx) {
-      (async () => {
-        const decryptionPromises = rooms.map((room) => room.decryptCriticalEvents());
+      const getLatestPreviewEvent = async (room: Room) => {
+        const lastLiveEvent = room.getLastLiveEvent();
+
+        if (lastLiveEvent && shouldShowEvent(mx, lastLiveEvent)) {
+          await mx.decryptEventIfNeeded(lastLiveEvent);
+          return lastLiveEvent;
+        }
+
+        const events = room.getLiveTimeline().getEvents();
+        const decryptionPromises = events.map((event) => mx.decryptEventIfNeeded(event));
         await Promise.all(decryptionPromises);
-        const _latestEvents = rooms.map((room) => {
-          const events = room.getLiveTimeline().getEvents();
 
-          for (let i = events.length - 1; i >= 0; i -= 1) {
-            const event = events[i];
-            if (shouldShowEvent(mx, event)) {
-              return event;
-            }
+        const decryptedEvents = room.getLiveTimeline().getEvents();
+        for (let i = decryptedEvents.length - 1; i >= 0; i -= 1) {
+          const event = decryptedEvents[i];
+          if (shouldShowEvent(mx, event)) {
+            return event;
           }
-          return undefined;
-        });
-        setLatestEvents(_latestEvents);
-      })();
-    }
-  }, [mx, rooms]);
+        }
 
-  useEffect(() => {
-    if (mx) {
+        return undefined;
+      };
+
       (async () => {
-        const timelinePromises = rooms.map((room) => {
-          const timeline = room.getLiveTimeline();
-          return mx?.paginateEventTimeline(timeline, {
-            backwards: true,
-            limit: 10,
-          });
-        });
-        await Promise.all(timelinePromises);
+        const latestEventsPromises = rooms.map((room) => getLatestPreviewEvent(room));
+        const _latestEvents = await Promise.all(latestEventsPromises);
 
-        const decryptionPromises = rooms.map((room) => room.decryptAllEvents());
-        await Promise.all(decryptionPromises);
-        const _latestEvents = rooms.map((room) => {
-          const events = room.getLiveTimeline().getEvents();
-
-          for (let i = events.length - 1; i >= 0; i -= 1) {
-            const event = events[i];
-            if (shouldShowEvent(mx, event)) {
-              return event;
-            }
-          }
-          return undefined;
-        });
         setLatestEvents(_latestEvents);
+
+        const undefinedIndexes = _latestEvents.map(
+          (value, index) => value === undefined ? index : undefined
+        ).filter(
+          (index) => index !== undefined
+        );
+
+        const backPaginationPromises = undefinedIndexes.map(
+          (index) => {
+            const room = rooms[index];
+            const timeline = room.getLiveTimeline();
+            return mx?.paginateEventTimeline(timeline, {
+              backwards: true,
+              limit: 10,
+            });
+          }
+        );
+        await Promise.all(backPaginationPromises);
+
+        const newLatestEventsPromises = rooms.map((room) => getLatestPreviewEvent(room));
+        const _newLatestEvents = await Promise.all(newLatestEventsPromises);
+
+        setLatestEvents(_newLatestEvents);
       })();
     }
   }, [mx, rooms]);
