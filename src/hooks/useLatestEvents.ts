@@ -23,6 +23,27 @@ interface Props {
   rooms?: Room[];
 }
 
+enum Modification {
+  None,
+  Unset,
+  Set,
+  Changed,
+}
+
+const getModification = (prev?: string, value?: string): Modification => {
+  if (prev && value && prev !== value) {
+    return Modification.Changed;
+  }
+  if (prev && !value) {
+    return Modification.Unset;
+  }
+  if (!prev && value) {
+    return Modification.Set;
+  }
+
+  return Modification.None;
+};
+
 const shouldShowEvent = (mx: MatrixClient, event: MatrixEvent) => {
   const eventType = event.getType();
   const content = event.getContent();
@@ -36,15 +57,18 @@ const shouldShowEvent = (mx: MatrixClient, event: MatrixEvent) => {
       return false;
     }
 
-    if (prevContent.displayname && prevContent.displayname !== content.displayname) {
+    const displayNameMod = getModification(prevContent.displayname, content.displayname);
+    if (displayNameMod === Modification.Changed || displayNameMod === Modification.Set || displayNameMod === Modification.Unset) {
       // Ignore display name changes
       return false;
     }
 
-    if (prevContent.avatar_url && prevContent.avatar_url !== content.avatar_url) {
+    const avatarMod = getModification(prevContent.avatar_url, content.avatar_url);
+    if (avatarMod === Modification.Changed || avatarMod === Modification.Set || avatarMod === Modification.Unset) {
       // Ignore avatar changes
       return false;
     }
+
     return true;
   }
 
