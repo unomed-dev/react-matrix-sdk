@@ -95,7 +95,9 @@ const MatrixClientProvider = ({
 
     const handleStateChange = (state: SyncState) => {
       // Make the client available after the first sync has completed
-      if (state === SyncState.Prepared) setMx(client);
+      if (state === SyncState.Prepared) {
+        setMx(client);
+      }
     };
 
     client.on(ClientEvent.Sync, handleStateChange);

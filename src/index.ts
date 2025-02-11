@@ -24,3 +24,9 @@ export {
 export {
   default as useLatestEvents,
 } from './hooks/useLatestEvents';
+export {
+  default as logout,
+} from './utils/logout';
+export {
+  default as useSingleTab,
+} from './hooks/useSingleTab';
