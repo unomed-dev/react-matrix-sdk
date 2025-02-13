@@ -16,7 +16,6 @@
 
 import { ClientEvent, createClient, IndexedDBCryptoStore, IndexedDBStore, MatrixClient, SyncState } from 'matrix-js-sdk';
 import React, { useEffect, useState } from 'react';
-import useSso from '../hooks/useSso';
 import MatrixClientContext from '../context/MatrixClientContext';
 import { cacheSecretStorageKey, cryptoCallbacks } from '../utils/secretStorageKeys';
 import { CryptoApi, decodeRecoveryKey } from 'matrix-js-sdk/lib/crypto-api';
@@ -25,6 +24,9 @@ import { CryptoApi, decodeRecoveryKey } from 'matrix-js-sdk/lib/crypto-api';
 interface Props {
   children: React.ReactNode;
   baseUrl: string;
+  accessToken?: string;
+  userId?: string;
+  deviceId?: string;
   enableCrypto?: boolean;
   enableKeyBackup?: boolean;
   enableCrossSigning?: boolean;
@@ -36,6 +38,9 @@ interface Props {
 const MatrixClientProvider = ({
   children,
   baseUrl,
+  accessToken,
+  userId,
+  deviceId,
   enableCrypto = false,
   enableKeyBackup = false,
   enableCrossSigning = false,
@@ -43,8 +48,6 @@ const MatrixClientProvider = ({
   rustCryptoStoreKeyFn,
   recoveryKeyFn,
 }: Props) => {
-  // We only support SSO Login at the moment
-  const { accessToken, userId, deviceId } = useSso(baseUrl);
   const [mx, setMx] = useState<MatrixClient>();
   const [cryptoApi, setCryptoApi] = useState<CryptoApi>();
 
