@@ -17,7 +17,15 @@
 export {
   useMatrixClient
 } from './hooks/useMatrixClient';
-export { default as MatrixClientProvider } from './providers/MatrixClientProvider';
+export {
+  default as useSso
+} from './hooks/useSso';
+export {
+  default as MatrixClientProvider
+} from './providers/MatrixClientProvider';
+export {
+  default as SSOAuthMatrixClientProvider
+} from './providers/SSOAuthMatrixClientProvider';
 export {
   default as useRooms,
 } from './hooks/useRooms';
