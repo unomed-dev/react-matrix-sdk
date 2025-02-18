@@ -40,7 +40,7 @@ const SSOAuthMatrixClientProvider = ({
 }: Props) => {
   const { accessToken, userId, deviceId } = useSso(baseUrl);
 
-  return accessToken && userId && deviceId && (
+  return (
     <MatrixClientProvider
       baseUrl={baseUrl}
       accessToken={accessToken}
