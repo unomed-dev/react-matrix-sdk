@@ -2,7 +2,7 @@
   "name": "@unomed/react-matrix-sdk",
   "private": false,
   "description": "A Matrix Client SDK for React",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "main": "dist/index.umd.js",
   "module": "dist/index.es.js",
   "types": "dist/index.d.ts",
