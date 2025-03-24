@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Unomed AG
+ * Copyright 2024-2025 Unomed AG
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,65 +14,78 @@
  * limitations under the License.
  */
 
-import { createClient } from 'matrix-js-sdk';
 import { useEffect, useState } from 'react';
 import { clearCredentials, getCredentials, storeCredentials } from '../auth/credentials';
+import defaultConfigClient from '../utils/client';
 
-const useSso = (baseUrl: string) => {
+const useSso = (baseUrl: string, loggedInUserId: string | undefined) => {
   const [accessToken, setAccessToken] = useState<string>();
   const [userId, setUserId] = useState<string>();
   const [deviceId, setDeviceId] = useState<string>();
 
   useEffect(() => {
-
     const ssoLogin = async () => {
       const queryParams = new URLSearchParams(window.location.search);
       const loginToken = queryParams.get('loginToken');
+      const baseDomain = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`;
 
-      const [accessToken, userId, deviceId] = getCredentials();
+      if (loginToken) {
+        const mx = defaultConfigClient(baseUrl);
+        // clear any existing stores
+        await mx.clearStores();
+        clearCredentials();
 
-      let isLoggedIn = false;
+        try {
+          const payload = await mx.loginWithToken(loginToken);
+          if (payload.access_token) {
+            storeCredentials(payload);
+          }
+        } finally {
+          window.history.replaceState({}, document.title, baseDomain);
+        }
+      }
+
+      const [existingAccessToken, existingUserId, existingDeviceId] = getCredentials();
+
       // Check if the existing credentials are valid
-      if (accessToken && userId && deviceId) {
-        const mx = createClient({ baseUrl, accessToken, userId, deviceId });
+      let isLoggedin = false;
+      if (loggedInUserId === existingUserId
+        && existingAccessToken
+        && existingUserId
+        && existingDeviceId
+      ) {
+        const mx = defaultConfigClient(
+          baseUrl,
+          existingAccessToken,
+          existingUserId,
+          existingDeviceId,
+        );
+
         try {
           await mx.whoami();
-          isLoggedIn = true;
-          setAccessToken(accessToken);
-          setUserId(userId);
-          setDeviceId(deviceId);
+          setAccessToken(existingAccessToken);
+          setUserId(existingUserId);
+          setDeviceId(existingDeviceId);
+          isLoggedin = true;
         } catch {
           // credentials are not valid
         }
       }
 
-      if (!isLoggedIn) {
-        const mx = createClient({ baseUrl });
-        const baseDomain = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`;
-        if (loginToken) {
-          // Clear any existing stores
-          await mx.clearStores();
-
-          const payload = await mx.loginWithToken(loginToken);
-          if (payload.access_token) {
-            storeCredentials(payload);
-            setAccessToken(payload.access_token);
-            setUserId(payload.user_id);
-            setDeviceId(payload.device_id);
-            window.history.replaceState({}, document.title, baseDomain);
-          } else {
-            clearCredentials();
-          }
-        } else {
-          clearCredentials();
-          const url = mx.getSsoLoginUrl(baseDomain, 'sso');
-          window.location.replace(url);
-        }
+      if (!isLoggedin) {
+        const mx = defaultConfigClient(baseUrl);
+        // clear any existing stores
+        await mx.clearStores();
+        clearCredentials();
+        const url = mx.getSsoLoginUrl(baseDomain, 'sso');
+        window.location.replace(url);
       }
     };
 
-    ssoLogin();
-  }, [baseUrl]);
+    if (loggedInUserId) {
+      ssoLogin();
+    }
+  }, [baseUrl, loggedInUserId]);
 
   return {
     accessToken,

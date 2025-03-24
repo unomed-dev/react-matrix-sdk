@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-import { ClientEvent, createClient, IndexedDBCryptoStore, IndexedDBStore, MatrixClient, SyncState } from 'matrix-js-sdk';
+import { ClientEvent, MatrixClient, SyncState } from 'matrix-js-sdk';
 import React, { useEffect, useState } from 'react';
 import MatrixClientContext from '../context/MatrixClientContext';
-import { cacheSecretStorageKey, cryptoCallbacks } from '../utils/secretStorageKeys';
+import { cacheSecretStorageKey } from '../utils/secretStorageKeys';
 import { CryptoApi, decodeRecoveryKey } from 'matrix-js-sdk/lib/crypto-api';
+import defaultConfigClient from '../utils/client';
 
 
 interface Props {
@@ -55,28 +56,10 @@ const MatrixClientProvider = ({
     // Initialize the client
     if (!accessToken || !userId || !deviceId) return;
 
-    const indexedDBStore = new IndexedDBStore({
-      indexedDB: global.indexedDB,
-      localStorage: global.localStorage,
-      dbName: 'web-sync-store',
-    });
-
-    const client = createClient({
-      baseUrl,
-      accessToken,
-      userId,
-      store: indexedDBStore,
-      cryptoStore: new IndexedDBCryptoStore(global.indexedDB, 'crypto-store'),
-      deviceId,
-      timelineSupport: true,
-      cryptoCallbacks,
-      verificationMethods: [
-        'm.sas.v1',
-      ],
-    });
+    const client = defaultConfigClient(baseUrl, accessToken, userId, deviceId);
 
     (async () => {
-      await indexedDBStore.startup();
+      await client.store.startup();
 
       if (enableCrypto) {
         // Setup e2ee
@@ -94,6 +77,60 @@ const MatrixClientProvider = ({
 
       // Start syncing
       await client.startClient({ lazyLoadMembers: true });
+
+      // Activate Key Backup
+      if (enableCrypto && enableKeyBackup && recoveryKeyFn) {
+        const recoveryKey = await recoveryKeyFn?.();
+
+        // Validate the recovery key
+        let recoveryKeyValid = false;
+
+        if (recoveryKey) {
+          const decodedRecoveryKey = decodeRecoveryKey(recoveryKey);
+          const keyId = await client.secretStorage.getDefaultKeyId();
+          const secretStorageKeyTuple = await client.secretStorage.getKey(keyId);
+          if (keyId && secretStorageKeyTuple) {
+            const [, keyInfo] = secretStorageKeyTuple;
+            recoveryKeyValid = await client.secretStorage.checkKey(decodedRecoveryKey, keyInfo);
+
+            if (recoveryKeyValid) {
+              // cache the recovery key if it's valid
+              cacheSecretStorageKey(keyId, keyInfo, decodedRecoveryKey);
+            }
+          }
+        }
+
+        if (recoveryKeyValid) {
+          const crypto = client.getCrypto();
+          const hasKeyBackup = (await crypto?.checkKeyBackupAndEnable()) !== null;
+          if (hasKeyBackup) {
+            await crypto?.loadSessionBackupPrivateKeyFromSecretStorage();
+          }
+        }
+      }
+
+      // Activate cross-signing
+      if (enableCrypto && enableCrossSigning) {
+        // Cache missing cross-signing keys locally, and setup cross-signing
+        const crypto = client.getCrypto();
+        await crypto?.userHasCrossSigningKeys(client.getUserId() || undefined, true);
+        await crypto?.bootstrapCrossSigning({});
+      }
+
+      // Activate device dehydration
+      if (enableCrypto && enableKeyBackup && enableCrossSigning && enableDeviceDehydration) {
+        // If supported, rehydrate from existing device (if exists) and start regular device dehydration
+        const crypto = client.getCrypto();
+        const dehydrationSupported = await crypto?.isDehydrationSupported();
+        if (dehydrationSupported) {
+          try {
+            await crypto?.startDehydration();
+          } catch {
+            // create new dehydration key if dehydration fails to start
+            await crypto?.startDehydration(true);
+          }
+        }
+      }
     })();
 
     const handleStateChange = (state: SyncState) => {
@@ -109,68 +146,18 @@ const MatrixClientProvider = ({
       // Clean up matrix client on unmount
       client.stopClient();
     };
-  }, [baseUrl, enableCrypto, rustCryptoStoreKeyFn, accessToken, userId, deviceId]);
-
-  useEffect(() => {
-    // Add recovery key and enable
-    if (enableKeyBackup && recoveryKeyFn && mx) {
-      (async () => {
-        const recoveryKey = await recoveryKeyFn?.();
-
-        // Validate the recovery key
-        let recoveryKeyValid = false;
-
-        if (recoveryKey) {
-          const decodedRecoveryKey = decodeRecoveryKey(recoveryKey);
-          const keyId = await mx?.secretStorage.getDefaultKeyId();
-          const secretStorageKeyTuple = await mx?.secretStorage.getKey(keyId);
-          if (keyId && secretStorageKeyTuple) {
-            const [, keyInfo] = secretStorageKeyTuple;
-            recoveryKeyValid = await mx.secretStorage.checkKey(decodedRecoveryKey, keyInfo);
-
-            if (recoveryKeyValid) {
-              // cache the recovery key if it's valid
-              cacheSecretStorageKey(keyId, keyInfo, decodedRecoveryKey);
-            }
-          }
-        }
-
-        if (recoveryKeyValid) {
-          const hasKeyBackup = (await cryptoApi?.checkKeyBackupAndEnable()) !== null;
-          if (hasKeyBackup) {
-            await cryptoApi?.loadSessionBackupPrivateKeyFromSecretStorage();
-          }
-        }
-      })();
-    }
-  }, [enableKeyBackup, mx, cryptoApi, recoveryKeyFn]);
-
-  useEffect(() => {
-    if (enableCrossSigning) {
-      (async () => {
-        // Cache missing cross-signing keys locally, and setup cross-signing
-        await cryptoApi?.userHasCrossSigningKeys(mx?.getUserId() || undefined, true);
-        await cryptoApi?.bootstrapCrossSigning({});
-      })();
-    }
-  }, [enableCrossSigning, mx, cryptoApi]);
-
-  useEffect(() => {
-    if (enableDeviceDehydration) {
-      (async () => {
-        // If supported, rehydrate from existing device (if exists) and start regular device dehydration
-        const dehydrationSupported = await cryptoApi?.isDehydrationSupported();
-        if (dehydrationSupported) {
-          try {
-            await cryptoApi?.startDehydration();
-          } catch {
-            // create new dehydration key if dehydration fails to start
-            await cryptoApi?.startDehydration(true);
-          }
-        }
-      })();
-    }
-  }, [enableDeviceDehydration, cryptoApi]);
+  }, [
+    baseUrl,
+    enableCrypto,
+    enableKeyBackup,
+    enableCrossSigning,
+    enableDeviceDehydration,
+    recoveryKeyFn,
+    rustCryptoStoreKeyFn,
+    accessToken,
+    userId,
+    deviceId
+  ]);
 
   return (
     <MatrixClientContext.Provider value={{
