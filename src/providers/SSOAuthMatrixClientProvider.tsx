@@ -20,6 +20,7 @@ import MatrixClientProvider from './MatrixClientProvider';
 interface Props {
   children: React.ReactNode;
   baseUrl: string;
+  loggedInUserId?: string;
   enableCrypto?: boolean;
   enableKeyBackup?: boolean;
   enableCrossSigning?: boolean;
@@ -31,6 +32,7 @@ interface Props {
 const SSOAuthMatrixClientProvider = ({
   children,
   baseUrl,
+  loggedInUserId,
   enableCrypto = false,
   enableKeyBackup = false,
   enableCrossSigning = false,
@@ -38,7 +40,7 @@ const SSOAuthMatrixClientProvider = ({
   rustCryptoStoreKeyFn,
   recoveryKeyFn,
 }: Props) => {
-  const { accessToken, userId, deviceId } = useSso(baseUrl);
+  const { accessToken, userId, deviceId } = useSso(baseUrl, loggedInUserId);
 
   return (
     <MatrixClientProvider
