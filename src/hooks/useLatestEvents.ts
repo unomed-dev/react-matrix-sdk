@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { EventType, JoinRule, MatrixClient, MatrixEvent, MatrixEventEvent, Room, RoomEvent } from 'matrix-js-sdk';
+import { EventType, Filter, JoinRule, MatrixClient, MatrixEvent, MatrixEventEvent, Room, RoomEvent } from 'matrix-js-sdk';
 import { useEffect, useState } from 'react';
 import { useMatrixClient } from './useMatrixClient';
 
@@ -85,58 +85,24 @@ const useLatestEvents = ({
 
   useEffect(() => {
     if (mx) {
-      const getLatestPreviewEvent = async (room: Room) => {
-        const lastLiveEvent = room.getLastLiveEvent();
-
-        if (lastLiveEvent && shouldShowEvent(mx, lastLiveEvent)) {
-          await mx.decryptEventIfNeeded(lastLiveEvent);
-          return lastLiveEvent;
-        }
-
-        const events = room.getLiveTimeline().getEvents();
-        const decryptionPromises = events.map((event) => mx.decryptEventIfNeeded(event));
-        await Promise.all(decryptionPromises);
-
-        const decryptedEvents = room.getLiveTimeline().getEvents();
-        for (let i = decryptedEvents.length - 1; i >= 0; i -= 1) {
-          const event = decryptedEvents[i];
-          if (shouldShowEvent(mx, event)) {
-            return event;
-          }
-        }
-
-        return undefined;
-      };
-
-      (async () => {
-        const latestEventsPromises = rooms.map((room) => getLatestPreviewEvent(room));
-        const _latestEvents = await Promise.all(latestEventsPromises);
-
-        setLatestEvents(_latestEvents);
-
-        const undefinedIndexes = _latestEvents.map(
-          (value, index) => value === undefined ? index : undefined
-        ).filter(
-          (index) => index !== undefined
-        );
-
-        const backPaginationPromises = undefinedIndexes.map(
-          (index) => {
-            const room = rooms[index];
-            const timeline = room.getLiveTimeline();
-            return mx?.paginateEventTimeline(timeline, {
-              backwards: true,
-              limit: 10,
-            });
-          }
-        );
-        await Promise.all(backPaginationPromises);
-
-        const newLatestEventsPromises = rooms.map((room) => getLatestPreviewEvent(room));
-        const _newLatestEvents = await Promise.all(newLatestEventsPromises);
-
-        setLatestEvents(_newLatestEvents);
-      })();
+      const filter = new Filter(mx.getUserId());
+      filter.setDefinition({
+        room: {
+          timeline: {
+            types: [EventType.RoomMessage],
+          },
+        },
+      });
+      const _latestEvents = rooms.map((room) => {
+        const eventTimelineSet = room.getOrCreateFilteredTimelineSet(filter);
+        const events = eventTimelineSet.getLiveTimeline().getEvents();
+        return events[events.length - 1];
+      });
+      const decryptionPromises = _latestEvents.map((event) => {
+        if (event) return mx.decryptEventIfNeeded(event);
+        return Promise.resolve(undefined);
+      });
+      Promise.all(decryptionPromises).then(() => setLatestEvents(_latestEvents));
     }
   }, [mx, rooms]);
 
@@ -178,6 +144,17 @@ const useLatestEvents = ({
       });
     };
   }, [latestEvents]);
+
+  // useEffect(() => {
+  //   const onEvent = (event: MatrixEvent) => {
+  //     console.log('onEvent', event);
+  //   };
+  //
+  //   mx?.on(ClientEvent.Event, onEvent);
+  //   return () => {
+  //     mx?.removeListener(ClientEvent.Event, onEvent);
+  //   };
+  // }, [mx]);
 
   return latestEvents;
 };
