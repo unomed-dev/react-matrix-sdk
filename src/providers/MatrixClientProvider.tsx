@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ClientEvent, MatrixClient, SyncState } from 'matrix-js-sdk';
+import { ClientEvent, IStartClientOpts, MatrixClient, SyncState } from 'matrix-js-sdk';
 import React, { useEffect, useState } from 'react';
 import MatrixClientContext from '../context/MatrixClientContext';
 import { cacheSecretStorageKey } from '../utils/secretStorageKeys';
@@ -34,6 +34,7 @@ interface Props {
   enableDeviceDehydration?: boolean;
   rustCryptoStoreKeyFn?: () => Promise<Uint8Array | undefined>;
   recoveryKeyFn?: () => Promise<string | undefined>;
+  startClientOpts?: IStartClientOpts;
 }
 
 const MatrixClientProvider = ({
@@ -48,6 +49,7 @@ const MatrixClientProvider = ({
   enableDeviceDehydration = false,
   rustCryptoStoreKeyFn,
   recoveryKeyFn,
+  startClientOpts,
 }: Props) => {
   const [mx, setMx] = useState<MatrixClient>();
   const [cryptoApi, setCryptoApi] = useState<CryptoApi>();
@@ -76,7 +78,7 @@ const MatrixClientProvider = ({
       }
 
       // Start syncing
-      await client.startClient({ lazyLoadMembers: true });
+      await client.startClient(startClientOpts);
 
       // Activate Key Backup
       if (enableCrypto && enableKeyBackup && recoveryKeyFn) {
@@ -156,7 +158,8 @@ const MatrixClientProvider = ({
     rustCryptoStoreKeyFn,
     accessToken,
     userId,
-    deviceId
+    deviceId,
+    startClientOpts,
   ]);
 
   return (
