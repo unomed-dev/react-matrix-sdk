@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { IStartClientOpts } from 'matrix-js-sdk';
 import useSso from '../hooks/useSso';
 import MatrixClientProvider from './MatrixClientProvider';
 
@@ -27,6 +28,7 @@ interface Props {
   enableDeviceDehydration?: boolean;
   rustCryptoStoreKeyFn?: () => Promise<Uint8Array | undefined>;
   recoveryKeyFn?: () => Promise<string | undefined>;
+  startClientOpts?: IStartClientOpts;
 };
 
 const SSOAuthMatrixClientProvider = ({
@@ -39,6 +41,7 @@ const SSOAuthMatrixClientProvider = ({
   enableDeviceDehydration = false,
   rustCryptoStoreKeyFn,
   recoveryKeyFn,
+  startClientOpts,
 }: Props) => {
   const { accessToken, userId, deviceId } = useSso(baseUrl, loggedInUserId);
 
@@ -54,6 +57,7 @@ const SSOAuthMatrixClientProvider = ({
       enableDeviceDehydration={enableDeviceDehydration}
       rustCryptoStoreKeyFn={rustCryptoStoreKeyFn}
       recoveryKeyFn={recoveryKeyFn}
+      startClientOpts={startClientOpts}
     >
       {children}
     </MatrixClientProvider>
