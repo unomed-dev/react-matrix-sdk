@@ -89,7 +89,7 @@ const useLatestEvents = ({
       filter.setDefinition({
         room: {
           timeline: {
-            types: [EventType.RoomMessage],
+            types: [EventType.RoomMessage, EventType.RoomName],
           },
         },
       });
