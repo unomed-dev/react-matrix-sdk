@@ -1,5 +1,3 @@
-import { ICryptoCallbacks } from 'matrix-js-sdk';
-import { ISecretStorageKeyInfo } from 'matrix-js-sdk/lib/crypto/api';
 import { SecretStorageKeyDescriptionAesV1 } from 'matrix-js-sdk/lib/secret-storage';
 
 const secretStorageKeys = new Map();
@@ -24,7 +22,7 @@ const clearSecretStorageKeys = () => {
 };
 
 const getSecretStorageKey = async ({ keys }: {
-  keys: Record<string, ISecretStorageKeyInfo>;
+  keys: Record<string, any>;
 }): Promise<[string, Uint8Array]> => {
   const keyIds = Object.keys(keys);
   const keyId = keyIds.find(hasPrivateKey);
@@ -43,7 +41,7 @@ function cacheSecretStorageKey(
   secretStorageKeys.set(keyId, privateKey);
 }
 
-const cryptoCallbacks: ICryptoCallbacks = {
+const cryptoCallbacks = {
   getSecretStorageKey,
   cacheSecretStorageKey,
 };

@@ -72,7 +72,6 @@ const MatrixClientProvider = ({
           await client.initRustCrypto();
         }
 
-        client.setGlobalErrorOnUnknownDevices(false);
         const crypto = client.getCrypto();
         setCryptoApi(crypto);
       }
